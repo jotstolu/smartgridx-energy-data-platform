@@ -1,0 +1,81 @@
+project:
+  name: smartgridx-energy-data-platform
+  industry: energy
+  source_system: smart_meter_platform
+
+generation:
+  random_seed: 42
+  number_of_customers: 1000
+  meters_per_customer_min: 1
+  meters_per_customer_max: 2
+  start_date: "2026-01-01"
+  end_date: "2026-01-07"
+  reading_frequency_minutes: 30
+
+regions:
+  - East of England
+  - London
+  - South East
+  - West Midlands
+  - North West
+  - Yorkshire and The Humber
+
+customer_segments:
+  - Residential
+  - Small Business
+  - Commercial
+  - Public Sector
+
+property_types:
+  - Flat
+  - Terraced House
+  - Semi-detached House
+  - Detached House
+  - Office
+  - Retail Unit
+  - Warehouse
+  - Public Building
+
+account_statuses:
+  - Active
+  - Suspended
+  - Closed
+
+meter_statuses:
+  - Active
+  - Faulty
+  - Disconnected
+
+tariffs:
+  - tariff_id: T001
+    tariff_name: Standard Variable
+    standing_charge_pence_per_day: 53.20
+    unit_rate_pence_per_kwh: 28.50
+    green_energy_flag: false
+
+  - tariff_id: T002
+    tariff_name: Green Saver
+    standing_charge_pence_per_day: 49.80
+    unit_rate_pence_per_kwh: 30.20
+    green_energy_flag: true
+
+  - tariff_id: T003
+    tariff_name: Economy Night
+    standing_charge_pence_per_day: 55.00
+    unit_rate_pence_per_kwh: 24.90
+    green_energy_flag: false
+
+  - tariff_id: T004
+    tariff_name: Business Fixed
+    standing_charge_pence_per_day: 75.00
+    unit_rate_pence_per_kwh: 33.40
+    green_energy_flag: false
+
+data_quality_injection:
+  duplicate_reading_rate: 0.02
+  negative_consumption_rate: 0.005
+  missing_customer_id_rate: 0.003
+  missing_meter_id_rate: 0.002
+  future_timestamp_rate: 0.001
+  outlier_consumption_rate: 0.004
+  late_arriving_rate: 0.01
