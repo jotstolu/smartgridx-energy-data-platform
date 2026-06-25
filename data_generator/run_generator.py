@@ -273,6 +273,120 @@ def generate_meter_readings(
 
     return readings_df
 
+def is_schema_drift_date(reading_date, config: dict) -> bool:
+    """
+    Decide whether schema drift should be applied for a given reading date.
+    """
+    schema_drift_config = config.get("schema_drift", {})
+
+    if not schema_drift_config.get("enabled", False):
+        return False
+
+    drift_start_date = datetime.fromisoformat(
+        schema_drift_config["drift_start_date"]
+    ).date()
+
+    return reading_date >= drift_start_date
+
+
+def apply_schema_drift(
+    day_df: pd.DataFrame,
+    reading_date,
+    config: dict,
+) -> pd.DataFrame:
+    """
+    Simulate source schema drift by adding new columns from a chosen date onwards.
+    """
+    df = day_df.copy()
+
+    if not is_schema_drift_date(reading_date, config):
+        return df
+
+    schema_drift_config = config["schema_drift"]
+
+    random_seed = config["generation"]["random_seed"] + int(
+        reading_date.strftime("%Y%m%d")
+    )
+
+    rng = np.random.default_rng(random_seed)
+
+    df["firmware_version"] = rng.choice(
+        schema_drift_config["firmware_versions"],
+        size=len(df),
+    )
+
+    df["signal_strength_dbm"] = rng.normal(
+        loc=-70,
+        scale=8,
+        size=len(df),
+    ).round(2)
+
+    df["meter_reading_quality_code"] = rng.choice(
+        schema_drift_config["quality_codes"],
+        size=len(df),
+        p=[0.88, 0.09, 0.03],
+    )
+
+    return df
+
+
+def write_meter_readings_by_day(
+    readings_df: pd.DataFrame,
+    output_base: Path,
+    config: dict,
+) -> pd.DataFrame:
+   
+    df = readings_df.copy()
+    df["reading_date"] = pd.to_datetime(df["reading_date"]).dt.date
+
+    manifest_records = []
+
+    for reading_date, day_df in df.groupby("reading_date"):
+        day_df = day_df.copy()
+        day_df = apply_schema_drift(day_df, reading_date, config)
+
+        file_date = reading_date.strftime("%Y%m%d")
+        partition_folder = f"reading_date={reading_date.isoformat()}"
+        file_name = f"meter_readings_{file_date}.csv"
+
+        output_path = (
+            output_base
+            / "meter_readings"
+            / partition_folder
+            / file_name
+        )
+
+        day_df = add_ingestion_metadata(day_df, file_name)
+        write_csv(day_df, output_path)
+
+        schema_drift_applied = is_schema_drift_date(reading_date, config)
+
+        manifest_records.append(
+            {
+                "source_name": "meter_readings",
+                "file_name": file_name,
+                "file_path": str(output_path.relative_to(PROJECT_ROOT)),
+                "reading_date": reading_date.isoformat(),
+                "record_count": len(day_df),
+                "column_count": len(day_df.columns),
+                "schema_drift_applied": schema_drift_applied,
+                "columns": "|".join(day_df.columns),
+                "generated_at_utc": pd.Timestamp.utcnow(),
+            }
+        )
+
+    manifest_df = pd.DataFrame(manifest_records)
+
+    manifest_path = (
+        PROJECT_ROOT
+        / "data"
+        / "metadata"
+        / "meter_readings_file_manifest.csv"
+    )
+
+    write_csv(manifest_df, manifest_path)
+
+    return manifest_df
 
 def main() -> None:
     config = load_config()
@@ -296,17 +410,17 @@ def main() -> None:
 
     print("Generating meter readings...")
     readings_df = generate_meter_readings(customers_df, meters_df, config)
-    readings_df = add_ingestion_metadata(readings_df, "meter_readings_20260101_20260107.csv")
-    write_csv(
-        readings_df,
-        output_base / "meter_readings" / "meter_readings_20260101_20260107.csv",
-    )
+
+    print("Writing daily partitioned meter reading files...")
+    manifest_df = write_meter_readings_by_day(readings_df, output_base, config)
 
     print("Data generation completed successfully.")
     print(f"Customers: {len(customers_df):,}")
     print(f"Tariffs: {len(tariffs_df):,}")
     print(f"Meters: {len(meters_df):,}")
     print(f"Meter readings: {len(readings_df):,}")
+    print(f"Daily meter reading files: {len(manifest_df):,}")
+    print("Schema drift starts from:", config["schema_drift"]["drift_start_date"])
 
 
 if __name__ == "__main__":

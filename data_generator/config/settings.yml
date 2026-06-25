@@ -79,3 +79,23 @@ data_quality_injection:
   future_timestamp_rate: 0.001
   outlier_consumption_rate: 0.004
   late_arriving_rate: 0.01
+
+output:
+  partition_meter_readings_by_day: true
+  write_file_manifest: true
+
+schema_drift:
+  enabled: true
+  drift_start_date: "2026-01-04"
+  added_columns:
+    - firmware_version
+    - signal_strength_dbm
+    - meter_reading_quality_code
+  firmware_versions:
+    - FW_1.0.0
+    - FW_1.1.0
+    - FW_1.2.0
+  quality_codes:
+    - ACTUAL
+    - ESTIMATED
+    - RECOVERED
