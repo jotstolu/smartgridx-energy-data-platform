@@ -388,6 +388,368 @@ def write_meter_readings_by_day(
 
     return manifest_df
 
+
+def generate_weather(config: dict) -> pd.DataFrame:
+    """
+    Generate daily regional weather data.
+
+    Weather affects electricity consumption, especially heating demand in cold weather.
+    """
+    start_date = datetime.fromisoformat(config["generation"]["start_date"]).date()
+    end_date = datetime.fromisoformat(config["generation"]["end_date"]).date()
+
+    weather_records = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        month = current_date.month
+
+        for region in config["regions"]:
+            # Simple seasonal temperature profile
+            if month in [12, 1, 2]:
+                avg_temp = np.random.normal(5, 3)
+            elif month in [3, 4, 5]:
+                avg_temp = np.random.normal(11, 4)
+            elif month in [6, 7, 8]:
+                avg_temp = np.random.normal(18, 4)
+            else:
+                avg_temp = np.random.normal(10, 4)
+
+            min_temp = round(avg_temp - np.random.uniform(2, 6), 2)
+            max_temp = round(avg_temp + np.random.uniform(2, 6), 2)
+
+            # Heating degree days: demand tends to rise when temp is below 15.5C
+            heating_degree_days = round(max(0, 15.5 - avg_temp), 2)
+
+            # Cooling degree days: demand may rise when temp is above 22C
+            cooling_degree_days = round(max(0, avg_temp - 22), 2)
+
+            weather_records.append(
+                {
+                    "weather_id": str(uuid.uuid4()),
+                    "weather_date": current_date,
+                    "region": region,
+                    "avg_temperature_c": round(avg_temp, 2),
+                    "min_temperature_c": min_temp,
+                    "max_temperature_c": max_temp,
+                    "humidity_percent": round(np.random.uniform(45, 95), 2),
+                    "wind_speed_mph": round(np.random.uniform(2, 35), 2),
+                    "weather_condition": random.choices(
+                        config["weather"]["conditions"],
+                        weights=[0.25, 0.30, 0.22, 0.08, 0.03, 0.05, 0.07],
+                        k=1,
+                    )[0],
+                    "heating_degree_days": heating_degree_days,
+                    "cooling_degree_days": cooling_degree_days,
+                }
+            )
+
+        current_date += timedelta(days=1)
+
+    return pd.DataFrame(weather_records)
+
+
+def generate_outage_events(config: dict) -> pd.DataFrame:
+    """
+    Generate synthetic regional outage events.
+    """
+    start_date = datetime.fromisoformat(config["generation"]["start_date"]).date()
+    end_date = datetime.fromisoformat(config["generation"]["end_date"]).date()
+
+    outage_records = []
+    current_date = start_date
+
+    outage_probability = config["outage_events"]["outage_probability_per_region_per_day"]
+
+    while current_date <= end_date:
+        for region in config["regions"]:
+            if random.random() <= outage_probability:
+                start_hour = random.randint(0, 23)
+                start_minute = random.choice([0, 15, 30, 45])
+                duration_minutes = random.choice([30, 60, 90, 120, 180, 240, 360])
+
+                outage_start = datetime.combine(
+                    current_date,
+                    datetime.min.time(),
+                ) + timedelta(hours=start_hour, minutes=start_minute)
+
+                outage_end = outage_start + timedelta(minutes=duration_minutes)
+
+                severity = random.choices(
+                    config["outage_events"]["severity_levels"],
+                    weights=[0.45, 0.35, 0.15, 0.05],
+                    k=1,
+                )[0]
+
+                if severity == "Low":
+                    affected_customers = random.randint(10, 100)
+                elif severity == "Medium":
+                    affected_customers = random.randint(100, 800)
+                elif severity == "High":
+                    affected_customers = random.randint(800, 2500)
+                else:
+                    affected_customers = random.randint(2500, 8000)
+
+                outage_records.append(
+                    {
+                        "outage_id": str(uuid.uuid4()),
+                        "region": region,
+                        "outage_type": random.choice(config["outage_events"]["outage_types"]),
+                        "severity": severity,
+                        "outage_start_timestamp": outage_start,
+                        "outage_end_timestamp": outage_end,
+                        "duration_minutes": duration_minutes,
+                        "affected_customers": affected_customers,
+                        "resolved_flag": random.choices(
+                            [True, False],
+                            weights=[0.92, 0.08],
+                            k=1,
+                        )[0],
+                    }
+                )
+
+        current_date += timedelta(days=1)
+
+    return pd.DataFrame(outage_records)
+
+
+def generate_billing_events(
+    readings_df: pd.DataFrame,
+    meters_df: pd.DataFrame,
+    tariffs_df: pd.DataFrame,
+    config: dict,
+) -> pd.DataFrame:
+    """
+    Generate daily billing events from valid meter readings.
+
+    This simulates how an energy supplier may calculate usage-based charges.
+    """
+    valid_readings_df = readings_df.copy()
+
+    valid_readings_df["reading_date"] = pd.to_datetime(
+        valid_readings_df["reading_date"],
+        errors="coerce",
+    ).dt.date
+
+    # Billing should not be based on obviously bad records.
+    valid_readings_df = valid_readings_df[
+        valid_readings_df["customer_id"].notna()
+        & valid_readings_df["meter_id"].notna()
+        & (valid_readings_df["consumption_kwh"] >= 0)
+        & (valid_readings_df["consumption_kwh"] <= 100)
+    ]
+
+    meter_tariff_df = meters_df[
+        ["meter_id", "customer_id", "tariff_id", "region"]
+    ].drop_duplicates()
+
+    tariff_rates_df = tariffs_df[
+        [
+            "tariff_id",
+            "standing_charge_pence_per_day",
+            "unit_rate_pence_per_kwh",
+        ]
+    ].drop_duplicates()
+
+    enriched_df = valid_readings_df.merge(
+        meter_tariff_df,
+        on=["meter_id", "customer_id", "region"],
+        how="left",
+    )
+
+    enriched_df = enriched_df.merge(
+        tariff_rates_df,
+        on="tariff_id",
+        how="left",
+    )
+
+    daily_billing_df = (
+        enriched_df.groupby(
+            [
+                "reading_date",
+                "customer_id",
+                "tariff_id",
+                "region",
+                "standing_charge_pence_per_day",
+                "unit_rate_pence_per_kwh",
+            ],
+            dropna=False,
+        )
+        .agg(total_consumption_kwh=("consumption_kwh", "sum"))
+        .reset_index()
+    )
+
+    billing_records = []
+    vat_rate = config["billing"]["vat_rate"]
+
+    for _, row in daily_billing_df.iterrows():
+        consumption_kwh = round(row["total_consumption_kwh"], 3)
+
+        energy_charge = round(
+            consumption_kwh * row["unit_rate_pence_per_kwh"] / 100,
+            2,
+        )
+
+        standing_charge = round(
+            row["standing_charge_pence_per_day"] / 100,
+            2,
+        )
+
+        subtotal = round(energy_charge + standing_charge, 2)
+        vat_amount = round(subtotal * vat_rate, 2)
+        total_amount = round(subtotal + vat_amount, 2)
+
+        payment_status = random.choices(
+            config["billing"]["payment_statuses"],
+            weights=[0.72, 0.18, 0.04, 0.06],
+            k=1,
+        )[0]
+
+        billing_date = row["reading_date"]
+        due_date = billing_date + timedelta(days=14)
+
+        if payment_status == "Paid":
+            paid_at = billing_date + timedelta(days=random.randint(0, 10))
+        else:
+            paid_at = None
+
+        billing_records.append(
+            {
+                "billing_event_id": str(uuid.uuid4()),
+                "customer_id": row["customer_id"],
+                "tariff_id": row["tariff_id"],
+                "region": row["region"],
+                "billing_date": billing_date,
+                "billing_period_start": billing_date,
+                "billing_period_end": billing_date,
+                "total_consumption_kwh": consumption_kwh,
+                "standing_charge_amount": standing_charge,
+                "energy_charge_amount": energy_charge,
+                "vat_amount": vat_amount,
+                "total_amount": total_amount,
+                "payment_status": payment_status,
+                "payment_method": random.choice(config["billing"]["payment_methods"]),
+                "due_date": due_date,
+                "paid_at": paid_at,
+            }
+        )
+
+    billing_df = pd.DataFrame(billing_records)
+
+    billing_df = inject_billing_data_quality_issues(billing_df)
+
+    return billing_df
+
+
+def inject_billing_data_quality_issues(billing_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Inject realistic billing data quality issues.
+    """
+    df = billing_df.copy()
+
+    if df.empty:
+        return df
+
+    total_rows = len(df)
+
+    # Duplicate billing events
+    duplicate_count = max(1, int(total_rows * 0.01))
+    duplicates = df.sample(n=duplicate_count, random_state=101)
+    df = pd.concat([df, duplicates], ignore_index=True)
+
+    # Missing tariff_id
+    missing_tariff_count = max(1, int(total_rows * 0.003))
+    missing_tariff_indexes = df.sample(n=missing_tariff_count, random_state=102).index
+    df.loc[missing_tariff_indexes, "tariff_id"] = None
+
+    # Negative total_amount
+    negative_amount_count = max(1, int(total_rows * 0.002))
+    negative_amount_indexes = df.sample(n=negative_amount_count, random_state=103).index
+    df.loc[negative_amount_indexes, "total_amount"] = -abs(
+        df.loc[negative_amount_indexes, "total_amount"]
+    )
+
+    # Unrealistic high bills
+    high_bill_count = max(1, int(total_rows * 0.002))
+    high_bill_indexes = df.sample(n=high_bill_count, random_state=104).index
+    df.loc[high_bill_indexes, "total_amount"] = np.random.uniform(
+        1000,
+        5000,
+        size=high_bill_count,
+    ).round(2)
+
+    df["billing_quality_issue_injected"] = False
+
+    df.loc[
+        df["tariff_id"].isna()
+        | (df["total_amount"] < 0)
+        | (df["total_amount"] > 1000),
+        "billing_quality_issue_injected",
+    ] = True
+
+    return df
+
+
+def write_daily_source_files(
+    df: pd.DataFrame,
+    output_base: Path,
+    source_name: str,
+    date_column: str,
+    file_prefix: str,
+) -> pd.DataFrame:
+    """
+    Reusable function for writing daily source files.
+
+    Example:
+    data/raw/weather/event_date=2026-01-01/weather_20260101.csv
+    """
+    source_df = df.copy()
+    source_df[date_column] = pd.to_datetime(
+        source_df[date_column],
+        errors="coerce",
+    ).dt.date
+
+    manifest_records = []
+
+    for event_date, day_df in source_df.groupby(date_column):
+        file_date = event_date.strftime("%Y%m%d")
+        partition_folder = f"{date_column}={event_date.isoformat()}"
+        file_name = f"{file_prefix}_{file_date}.csv"
+
+        output_path = output_base / source_name / partition_folder / file_name
+
+        day_df = add_ingestion_metadata(day_df, file_name)
+        write_csv(day_df, output_path)
+
+        manifest_records.append(
+            {
+                "source_name": source_name,
+                "file_name": file_name,
+                "file_path": str(output_path.relative_to(PROJECT_ROOT)),
+                "event_date": event_date.isoformat(),
+                "record_count": len(day_df),
+                "column_count": len(day_df.columns),
+                "columns": "|".join(day_df.columns),
+                "generated_at_utc": pd.Timestamp.utcnow(),
+            }
+        )
+
+    manifest_df = pd.DataFrame(manifest_records)
+
+    manifest_path = (
+        PROJECT_ROOT
+        / "data"
+        / "metadata"
+        / f"{source_name}_file_manifest.csv"
+    )
+
+    write_csv(manifest_df, manifest_path)
+
+    return manifest_df
+
+
+
+
 def main() -> None:
     config = load_config()
 
@@ -414,14 +776,56 @@ def main() -> None:
     print("Writing daily partitioned meter reading files...")
     manifest_df = write_meter_readings_by_day(readings_df, output_base, config)
 
+
+    print("Generating weather data...")
+    weather_df = generate_weather(config)
+    weather_manifest_df = write_daily_source_files(
+        df=weather_df,
+        output_base=output_base,
+        source_name="weather",
+        date_column="weather_date",
+        file_prefix="weather",
+    )
+
+    print("Generating outage events...")
+    outage_events_df = generate_outage_events(config)
+    outage_manifest_df = write_daily_source_files(
+        df=outage_events_df,
+        output_base=output_base,
+        source_name="outage_events",
+        date_column="outage_start_timestamp",
+        file_prefix="outage_events",
+    )
+
+    print("Generating billing events...")
+    billing_events_df = generate_billing_events(
+        readings_df=readings_df,
+        meters_df=meters_df,
+        tariffs_df=tariffs_df,
+        config=config,
+    )
+    billing_manifest_df = write_daily_source_files(
+        df=billing_events_df,
+        output_base=output_base,
+        source_name="billing_events",
+        date_column="billing_date",
+        file_prefix="billing_events",
+    )
+
+
     print("Data generation completed successfully.")
     print(f"Customers: {len(customers_df):,}")
     print(f"Tariffs: {len(tariffs_df):,}")
     print(f"Meters: {len(meters_df):,}")
     print(f"Meter readings: {len(readings_df):,}")
+    print(f"Weather records: {len(weather_df):,}")
+    print(f"Outage events: {len(outage_events_df):,}")
+    print(f"Billing events: {len(billing_events_df):,}")
     print(f"Daily meter reading files: {len(manifest_df):,}")
+    print(f"Daily weather files: {len(weather_manifest_df):,}")
+    print(f"Daily outage files: {len(outage_manifest_df):,}")
+    print(f"Daily billing files: {len(billing_manifest_df):,}")
     print("Schema drift starts from:", config["schema_drift"]["drift_start_date"])
-
 
 if __name__ == "__main__":
     main()

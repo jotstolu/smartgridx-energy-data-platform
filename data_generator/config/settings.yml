@@ -99,3 +99,40 @@ schema_drift:
     - ACTUAL
     - ESTIMATED
     - RECOVERED
+
+weather:
+  conditions:
+    - Clear
+    - Cloudy
+    - Rain
+    - Heavy Rain
+    - Snow
+    - Fog
+    - Windy
+
+outage_events:
+  outage_probability_per_region_per_day: 0.18
+  outage_types:
+    - Planned Maintenance
+    - Network Fault
+    - Storm Damage
+    - Equipment Failure
+    - Third Party Damage
+  severity_levels:
+    - Low
+    - Medium
+    - High
+    - Critical
+
+billing:
+  vat_rate: 0.05
+  payment_statuses:
+    - Paid
+    - Pending
+    - Failed
+    - Overdue
+  payment_methods:
+    - Direct Debit
+    - Card
+    - Bank Transfer
+    - Prepayment
