@@ -1,0 +1,64 @@
+project:
+    name: smartgridx-energy-data-platform
+    domain: energy
+    environment: dev
+
+lakehouse:
+    catalog: smartgridx_dev
+    bronze_schema: bronze
+    silver_schema: silver
+    gold_schema: gold
+    audit_schema: audit
+
+paths:
+    raw_base_path: "/Volumes/smartgridx_dev/raw/smartgridx_raw"
+
+sources:
+  - source_name: customers
+    source_path: "customers"
+    file_pattern: "*.csv"
+    target_table: "customers_raw"
+    load_type: full
+    multiline: false
+
+  - source_name: tariffs
+    source_path: "tariffs"
+    file_pattern: "*.csv"
+    target_table: "tariffs_raw"
+    load_type: full
+    multiline: false
+
+  - source_name: meters
+    source_path: "meters"
+    file_pattern: "*.csv"
+    target_table: "meters_raw"
+    load_type: full
+    multiline: false
+
+  - source_name: meter_readings
+    source_path: "meter_readings"
+    file_pattern: "reading_date=*/meter_readings_*.csv"
+    target_table: "meter_readings_raw"
+    load_type: incremental
+    multiline: false
+
+  - source_name: weather
+    source_path: "weather"
+    file_pattern: "weather_date=*/weather_*.csv"
+    target_table: "weather_raw"
+    load_type: incremental
+    multiline: false
+
+  - source_name: outage_events
+    source_path: "outage_events"
+    file_pattern: "outage_start_timestamp=*/outage_events_*.csv"
+    target_table: "outage_events_raw"
+    load_type: incremental
+    multiline: false
+
+  - source_name: billing_events
+    source_path: "billing_events"
+    file_pattern: "billing_date=*/billing_events_*.csv"
+    target_table: "billing_events_raw"
+    load_type: incremental
+    multiline: false      
