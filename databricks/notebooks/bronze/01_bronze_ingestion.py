@@ -133,11 +133,13 @@ for source in config["sources"]:
                 multiline=multiline,
             )
 
-        bronze_df = add_bronze_metadata(
-            df=raw_df,
-            source_name=source_name,
-            run_id=run_id,
-            environment=environment,
+        # Add bronze metadata - use source_file_name from data instead of _metadata.file_path
+        bronze_df = (
+            raw_df.withColumn("_source_name", F.lit(source_name))
+            .withColumn("_source_file_path", F.col("source_file_name"))
+            .withColumn("_ingested_at_utc", F.current_timestamp())
+            .withColumn("_run_id", F.lit(run_id))
+            .withColumn("_environment", F.lit(environment))
         )
 
         records_loaded = bronze_df.count()
@@ -165,11 +167,29 @@ for source in config["sources"]:
             "environment": environment,
         }
 
-        write_audit_record(
-            spark=spark,
-            catalog=catalog,
-            audit_schema=audit_schema,
-            audit_record=audit_record,
+        from pyspark.sql.types import StructType, StructField, StringType, LongType, TimestampType
+        audit_schema_struct = StructType([
+            StructField("run_id", StringType(), True),
+            StructField("source_name", StringType(), True),
+            StructField("target_table", StringType(), True),
+            StructField("source_path", StringType(), True),
+            StructField("file_pattern", StringType(), True),
+            StructField("load_type", StringType(), True),
+            StructField("status", StringType(), True),
+            StructField("records_loaded", LongType(), True),
+            StructField("error_message", StringType(), True),
+            StructField("started_at_utc", TimestampType(), True),
+            StructField("ended_at_utc", TimestampType(), True),
+            StructField("environment", StringType(), True),
+        ])
+        audit_df = spark.createDataFrame([
+            (audit_record["run_id"], audit_record["source_name"], audit_record["target_table"],
+             audit_record["source_path"], audit_record["file_pattern"], audit_record["load_type"],
+             audit_record["status"], audit_record["records_loaded"], audit_record["error_message"],
+             audit_record["started_at_utc"], audit_record["ended_at_utc"], audit_record["environment"])
+        ], schema=audit_schema_struct)
+        audit_df.write.format("delta").mode("append").saveAsTable(
+            f"{catalog}.{audit_schema}.bronze_ingestion_audit"
         )
 
         print(f"SUCCESS: {source_name}")
@@ -193,11 +213,29 @@ for source in config["sources"]:
             "environment": environment,
         }
 
-        write_audit_record(
-            spark=spark,
-            catalog=catalog,
-            audit_schema=audit_schema,
-            audit_record=audit_record,
+        from pyspark.sql.types import StructType, StructField, StringType, LongType, TimestampType
+        audit_schema_struct = StructType([
+            StructField("run_id", StringType(), True),
+            StructField("source_name", StringType(), True),
+            StructField("target_table", StringType(), True),
+            StructField("source_path", StringType(), True),
+            StructField("file_pattern", StringType(), True),
+            StructField("load_type", StringType(), True),
+            StructField("status", StringType(), True),
+            StructField("records_loaded", LongType(), True),
+            StructField("error_message", StringType(), True),
+            StructField("started_at_utc", TimestampType(), True),
+            StructField("ended_at_utc", TimestampType(), True),
+            StructField("environment", StringType(), True),
+        ])
+        audit_df = spark.createDataFrame([
+            (audit_record["run_id"], audit_record["source_name"], audit_record["target_table"],
+             audit_record["source_path"], audit_record["file_pattern"], audit_record["load_type"],
+             audit_record["status"], audit_record["records_loaded"], audit_record["error_message"],
+             audit_record["started_at_utc"], audit_record["ended_at_utc"], audit_record["environment"])
+        ], schema=audit_schema_struct)
+        audit_df.write.format("delta").mode("append").saveAsTable(
+            f"{catalog}.{audit_schema}.bronze_ingestion_audit"
         )
 
         print(f"FAILED: {source_name}")
