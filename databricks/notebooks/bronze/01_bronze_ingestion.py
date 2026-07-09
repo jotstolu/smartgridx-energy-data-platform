@@ -30,6 +30,7 @@ from smartgridx.bronze_utils import (
     create_database_if_not_exists,
     add_bronze_metadata,
     read_raw_csv,
+    read_raw_csv_with_schema_evolution,
     write_bronze_delta,
     get_table_count,
     create_audit_table,
@@ -118,11 +119,19 @@ for source in config["sources"]:
     print(f"Load type: {load_type}")
 
     try:
-        raw_df = read_raw_csv(
-            spark=spark,
-            file_path=full_source_path,
-            multiline=multiline,
-        )
+       
+        if source_name == "meter_readings":
+            raw_df = read_raw_csv_with_schema_evolution(
+                spark=spark,
+                file_path_pattern=full_source_path,
+                multiline=multiline,
+            )
+        else:
+            raw_df = read_raw_csv(
+                spark=spark,
+                file_path=full_source_path,
+                multiline=multiline,
+            )
 
         bronze_df = add_bronze_metadata(
             df=raw_df,

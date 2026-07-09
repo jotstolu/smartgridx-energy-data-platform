@@ -1,5 +1,7 @@
 from datetime import datetime
 from typing import Dict, List
+from functools import reduce
+from glob import glob
 
 import yaml
 from pyspark.sql import DataFrame, SparkSession
@@ -35,6 +37,47 @@ def read_raw_csv(spark:SparkSession, file_path:str, multiline: bool = False) -> 
         .option("rescuedDataColumn", "_rescued_data")
         .load(file_path)
     )
+
+def read_raw_csv_with_schema_evolution(
+    spark: SparkSession,
+    file_path_pattern: str,
+    multiline: bool = False,
+) -> DataFrame:
+    """
+    Read CSV files one-by-one and union them by column name.
+
+    This handles schema drift where later files contain additional columns
+    that earlier files do not have.
+    """
+    matching_files = sorted(glob(file_path_pattern))
+
+    if not matching_files:
+        raise FileNotFoundError(f"No files found for pattern: {file_path_pattern}")
+
+    dataframes = []
+
+    for file_path in matching_files:
+        df = (
+            spark.read.format("csv")
+            .option("header", "true")
+            .option("inferSchema", "false")
+            .option("multiLine", str(multiline).lower())
+            .option("mode", "PERMISSIVE")
+            .option("rescuedDataColumn", "_rescued_data")
+            .load(file_path)
+        )
+
+        dataframes.append(df)
+
+    combined_df = reduce(
+        lambda left_df, right_df: left_df.unionByName(
+            right_df,
+            allowMissingColumns=True,
+        ),
+        dataframes,
+    )
+
+    return combined_df
 
 def write_bronze_delta(df:DataFrame, catalog:str, schema_name: str, table_name:str, load_type:str) -> None:
     target_table = f"{catalog}.{schema_name}.{table_name}"
@@ -76,4 +119,3 @@ def write_audit_record(spark: SparkSession, catalog:str, audit_schema: str, audi
     audit_df.write.format("delta").mode("append").saveAsTable(
         f"{catalog}.{audit_schema}.bronze_ingestion_audit"
     )
-
