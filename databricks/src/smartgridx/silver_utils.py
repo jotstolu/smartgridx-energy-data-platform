@@ -59,7 +59,7 @@ def cast_meter_reading_columns(df: DataFrame) -> DataFrame:
     cast Bronze string columns into proper silver data types
     """
 
-     return (
+    return (
         df.withColumn("reading_timestamp", F.to_timestamp("reading_timestamp"))
         .withColumn("reading_date", F.to_date("reading_date"))
         .withColumn("consumption_kwh", F.col("consumption_kwh").cast(DoubleType()))
