@@ -37,8 +37,8 @@ quarantine_table = f"{catalog}.{silver_schema}.{quarantine_table_name}"
 
 # COMMAND ----------
 
-# Adjust this path if your Databricks Git folder path is different.
-sys.path.append("/Workspace/Users/olaoluwasolademi310@gmail.com/smartgridx-energy-data-platform/databricks/src")
+
+sys.path.append("/Workspace/Repos/olaoluwasolademi310@gmail.com/smartgridx-energy-data-platform/databricks/src")
 
 from smartgridx.silver_utils import (
     create_silver_audit_table,
