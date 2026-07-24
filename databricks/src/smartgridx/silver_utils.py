@@ -122,7 +122,7 @@ def add_duplicate_flag(df:DataFrame) -> DataFrame:
     """
     window_spec = Window.partitionBy("reading_id").orderBy(F.col("_ingested_at_utc").desc())
 
-     return (
+    return (
         df.withColumn("duplicate_rank", F.row_number().over(window_spec))
         .withColumn(
             "is_duplicate_reading",
@@ -150,12 +150,12 @@ def add_quarantine_reason(df: DataFrame) -> DataFrame:
     )
 
 
-def split_clean_and_quarantine(df: DataFrame) - > tuple[DataFrame, DataFrame]:
+def split_clean_and_quarantine(df: DataFrame) -> tuple[DataFrame, DataFrame]:
     """
     split dataframe into clean and quarantined records.
 
     """
-     has_quality_issue = (
+    has_quality_issue = (
         F.col("is_missing_reading_id")
         | F.col("is_missing_customer_id")
         | F.col("is_missing_meter_id")
@@ -191,7 +191,7 @@ def write_delta_table(
     schema_name: str,
     table_name: str,
     mode: str = "overwrite"
-) - > None:
+) -> None:
 """
 write dataframe as a table
 
