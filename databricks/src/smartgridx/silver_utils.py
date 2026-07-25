@@ -42,7 +42,7 @@ def write_silver_audit_record(
     )
 
 
-def standardise_string_columns(df: Dataframe) -> DataFrame:
+def standardise_string_columns(df: DataFrame) -> DataFrame:
     result_df = df
 
     for column_name, data_type in result_df.dtypes:
@@ -185,23 +185,17 @@ def split_clean_and_quarantine(df: DataFrame) -> tuple[DataFrame, DataFrame]:
     return clean_df, quarantine_df
 
 
-def write_delta_table(
-    df:DataFrame,
-    catalog: str,
-    schema_name: str,
-    table_name: str,
-    mode: str = "overwrite"
+def write_delta_table(df:DataFrame, catalog: str, schema_name: str, table_name: str, mode: str = "overwrite"
 ) -> None:
 """
 write dataframe as a table
 
 """
-(
+    (
     df.write.format("delta")
-    .mode(mode)
-    .option("overwriteSchema", "true")
+    .mode(mode).option("overwriteSchem0-  a", "true")
     .saveAsTable(f"{catalog}.{schema_name}.{table_name}")
-)
+    )
 
 
 
