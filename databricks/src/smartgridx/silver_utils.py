@@ -21,7 +21,7 @@ def create_silver_audit_table(spark: SparkSession, catalog: str,audit_schema: st
         duplicate_records BIGINT,
         error_nessage STRING,
         started_at_utc TIMESTAMP,
-        ended_at_utc TIMESTANP,
+        ended_at_utc TIMESTAMP,
         environment STRING
         )
         USING DELTA
@@ -172,7 +172,7 @@ def split_clean_and_quarantine(df: DataFrame) -> tuple[DataFrame, DataFrame]:
 
     clean_df = df.filter(~has_quality_issue).drop("duplicate_rank")
 
-    quarantine_df = quarantinne_df.withColumn(
+    quarantine_df = quarantine_df.withColumn(
         "quarantined_at_utc",
         F.current_timestamp()
     )
