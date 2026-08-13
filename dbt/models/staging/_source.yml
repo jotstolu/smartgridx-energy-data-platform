@@ -1,0 +1,95 @@
+version: 2
+
+sources:
+  - name: silver
+    description: "Cleaned and validated Silver layer tables created by Databricks PySpark notebooks."
+    database: smartgridx_dev
+    schema: silver
+
+    config:
+      freshness:
+        warn_after:
+          count: 30
+          period: day
+        error_after:
+          count: 90
+          period: day
+      loaded_at_field: silver_processed_at_utc
+
+    tables:
+      - name: customers_clean
+        description: "Validated customer records from the Silver layer."
+        columns:
+          - name: customer_id
+            data_tests:
+              - not_null
+              - unique
+
+      - name: tariffs_clean
+        description: "Validated tariff records from the Silver layer."
+        columns:
+          - name: tariff_id
+            data_tests:
+              - not_null
+              - unique
+
+      - name: meters_clean
+        description: "Validated meter records from the Silver layer."
+        columns:
+          - name: meter_id
+            data_tests:
+              - not_null
+              - unique
+          - name: customer_id
+            data_tests:
+              - not_null
+          - name: tariff_id
+            data_tests:
+              - not_null
+
+      - name: meter_readings_clean
+        description: "Validated smart meter readings from the Silver layer."
+        columns:
+          - name: reading_id
+            data_tests:
+              - not_null
+              - unique
+          - name: meter_id
+            data_tests:
+              - not_null
+          - name: customer_id
+            data_tests:
+              - not_null
+          - name: consumption_kwh
+            data_tests:
+              - not_null
+
+      - name: weather_clean
+        description: "Validated regional weather records from the Silver layer."
+        columns:
+          - name: weather_id
+            data_tests:
+              - not_null
+              - unique
+
+      - name: outage_events_clean
+        description: "Validated regional outage events from the Silver layer."
+        columns:
+          - name: outage_id
+            data_tests:
+              - not_null
+              - unique
+
+      - name: billing_events_clean
+        description: "Validated customer billing events from the Silver layer."
+        columns:
+          - name: billing_event_id
+            data_tests:
+              - not_null
+              - unique
+          - name: customer_id
+            data_tests:
+              - not_null
+          - name: tariff_id
+            data_tests:
+              - not_null

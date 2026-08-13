@@ -1,0 +1,21 @@
+select
+    {{ generate_surrogate_key(["customer_id"]) }} as customer_sk,
+    customer_id,
+    customer_name,
+    email,
+    phone_number,
+    postcode,
+    region,
+    customer_segment,
+    property_type,
+    account_status,
+    cast(registration_date as date) as registration_date,
+    source_file_name,
+    source_system,
+    generated_at_utc,
+    _source_file_path,
+    _run_id,
+    _environment,
+    silver_processed_at_utc,
+    {{ add_model_audit_columns() }}
+from {{ source('silver', 'customers_clean') }}
