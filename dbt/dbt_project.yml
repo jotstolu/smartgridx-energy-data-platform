@@ -30,6 +30,18 @@ models:
       +materialized: table
       +tags: ["marts", "gold"]
 
+      dimensions:
+        +materialized: table
+        +tags: ["dimensions", "gold"]
+
+      facts:
+        +materialized: incremental
+        +tags: ["facts", "gold"]
+
+      reporting:
+        +materialized: table
+        +tags: ["reporting", "gold"]
+
 snapshots:
   smartgridx:
     +target_schema: snapshots
