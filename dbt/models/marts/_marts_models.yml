@@ -194,3 +194,54 @@ models:
       - name: total_billed_amount
         data_tests:
           - positive_or_zero
+
+  - name: dim_customers_scd
+    description: "SCD Type 2 customer dimension built from dbt customer snapshots."
+    columns:
+      - name: customer_version_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - not_null
+      - name: valid_from_timestamp
+        data_tests:
+          - not_null
+      - name: is_current_record
+        data_tests:
+          - not_null
+
+  - name: dim_tariffs_scd
+    description: "SCD Type 2 tariff dimension built from dbt tariff snapshots."
+    columns:
+      - name: tariff_version_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: tariff_id
+        data_tests:
+          - not_null
+      - name: valid_from_timestamp
+        data_tests:
+          - not_null
+      - name: is_current_record
+        data_tests:
+          - not_null
+
+  - name: dim_meters_scd
+    description: "SCD Type 2 meter dimension built from dbt meter snapshots."
+    columns:
+      - name: meter_version_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: meter_id
+        data_tests:
+          - not_null
+      - name: valid_from_timestamp
+        data_tests:
+          - not_null
+      - name: is_current_record
+        data_tests:
+          - not_null
