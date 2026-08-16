@@ -16,9 +16,8 @@ airflow/dbt/target/
 airflow/dbt/logs/
 airflow/dbt/dbt_packages/
 
-# data files if too large
-data/raw/
-data/processed/
+# Generated/local data
+data/
 
 # OS/editor
 .DS_Store
