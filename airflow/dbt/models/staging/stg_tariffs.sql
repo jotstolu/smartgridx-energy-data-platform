@@ -1,0 +1,20 @@
+select
+    {{ generate_surrogate_key(["tariff_id"]) }} as tariff_sk,
+    tariff_id,
+    tariff_name,
+    cast(standing_charge_pence_per_day as double) as standing_charge_pence_per_day,
+    {{ cents_to_pounds("standing_charge_pence_per_day") }} as standing_charge_amount_per_day,
+    cast(unit_rate_pence_per_kwh as double) as unit_rate_pence_per_kwh,
+    {{ cents_to_pounds("unit_rate_pence_per_kwh") }} as unit_rate_amount_per_kwh,
+    cast(green_energy_flag as boolean) as green_energy_flag,
+    cast(effective_start_date as date) as effective_start_date,
+    cast(effective_end_date as date) as effective_end_date,
+    source_file_name,
+    source_system,
+    generated_at_utc,
+    _source_file_path,
+    _run_id,
+    _environment,
+    silver_processed_at_utc,
+    {{ add_model_audit_columns() }}
+from {{ source('silver', 'tariffs_clean') }}

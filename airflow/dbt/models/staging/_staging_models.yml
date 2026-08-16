@@ -1,0 +1,186 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Standardised customer staging model from the Silver customer table."
+    columns:
+      - name: customer_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+      - name: account_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Active", "Suspended", "Closed"]
+
+  - name: stg_tariffs
+    description: "Standardised tariff staging model."
+    columns:
+      - name: tariff_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: tariff_id
+        data_tests:
+          - not_null
+          - unique
+      - name: standing_charge_pence_per_day
+        data_tests:
+          - positive_or_zero
+      - name: unit_rate_pence_per_kwh
+        data_tests:
+          - positive_or_zero
+
+  - name: stg_meters
+    description: "Standardised meter staging model."
+    columns:
+      - name: meter_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: meter_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: tariff_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_tariffs')
+                field: tariff_id
+      - name: meter_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["SMETS1", "SMETS2"]
+      - name: meter_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Active", "Faulty", "Disconnected"]
+
+  - name: stg_meter_readings
+    description: "Standardised meter reading staging model."
+    columns:
+      - name: meter_reading_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: reading_id
+        data_tests:
+          - not_null
+          - unique
+      - name: meter_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_meters')
+                field: meter_id
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: consumption_kwh
+        data_tests:
+          - not_null
+          - positive_or_zero
+      - name: voltage
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 200
+                max_value: 260
+
+  - name: stg_weather
+    description: "Standardised regional weather staging model."
+    columns:
+      - name: weather_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: weather_id
+        data_tests:
+          - not_null
+          - unique
+      - name: humidity_percent
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: weather_condition
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Clear", "Cloudy", "Rain", "Heavy Rain", "Snow", "Fog", "Windy"]
+
+  - name: stg_outage_events
+    description: "Standardised regional outage event staging model."
+    columns:
+      - name: outage_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: outage_id
+        data_tests:
+          - not_null
+          - unique
+      - name: severity
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Low", "Medium", "High", "Critical"]
+      - name: duration_minutes
+        data_tests:
+          - positive_or_zero
+
+  - name: stg_billing_events
+    description: "Standardised customer billing event staging model."
+    columns:
+      - name: billing_event_sk
+        data_tests:
+          - not_null
+          - unique
+      - name: billing_event_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: tariff_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_tariffs')
+                field: tariff_id
+      - name: total_amount
+        data_tests:
+          - not_null
+          - positive_or_zero
+      - name: payment_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Paid", "Pending", "Failed", "Overdue"]
+      - name: payment_method
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Direct Debit", "Card", "Bank Transfer", "Prepayment"]

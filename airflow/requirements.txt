@@ -1,0 +1,6 @@
+databricks-sdk
+dbt-core
+dbt-databricks
+requests
+pyyaml
+python-dotenv
