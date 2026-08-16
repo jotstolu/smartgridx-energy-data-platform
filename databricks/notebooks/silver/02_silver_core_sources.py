@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # SmartGridX - Silver Core Sources
 # MAGIC
@@ -21,6 +25,7 @@ from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 
 # COMMAND ----------
+
 dbutils.widgets.text("environment", "dev")
 dbutils.widgets.text("catalog", "smartgridx_dev")
 dbutils.widgets.text("run_id", "")
@@ -36,7 +41,8 @@ silver_schema = "silver"
 audit_schema = "audit"
 
 # COMMAND ----------
-sys.path.append("/Workspace/Users/olaoluwasolademi310")
+
+sys.path.append("/Workspace/Repos/olaoluwasolademi310@gmail.com/smartgridx-energy-data-platform/databricks/src")
 
 from smartgridx.silver_utils import (
     create_silver_audit_table,
@@ -83,7 +89,7 @@ def add_duplicate_flag(df: DataFrame, key_col: str, flag_col: str)  -> DataFrame
         )
     )
 
-def add_quarantine_reason(df:DataFrame, reason_map: dict) - > DataFrame:
+def add_quarantine_reason(df:DataFrame, reason_map: dict) -> DataFrame:
     """
     Build a readable quarantine reason from boolean validation flags.
 
@@ -93,7 +99,7 @@ def add_quarantine_reason(df:DataFrame, reason_map: dict) - > DataFrame:
         for flag_col, reason_text in reason_map.items()
     ]
 
-    return_df.withColumn("quarantine_reason", F.concat_ws("; ", *reason_expressions))
+    return df.withColumn("quarantine_reason", F.concat_ws("; ", *reason_expressions))
 
 
 def split_clean_and_quarantine_generic(df: DataFrame, reason_map: dict,) -> tuple[DataFrame, DataFrame]:
@@ -118,24 +124,25 @@ def split_clean_and_quarantine_generic(df: DataFrame, reason_map: dict,) -> tupl
     return clean_df, quarantine_df
 
 
-def add_reference_check(df: DataFrame, refernce_df: DataFrame, join_col: str, flag_col: str) -> DataFrame:
+def add_reference_check(df: DataFrame, reference_df: DataFrame, join_col: str, flag_col: str) -> DataFrame:
     """
     flag records where a foreign key does not exist in a reference table.
 
     """
-    ref_col = (
-        reference_df.select(F.col(join_col).alias(ref_col))
+    ref_col_name = f"_ref_{join_col}"
+    ref_df = (
+        reference_df.select(F.col(join_col).alias(ref_col_name))
         .dropDuplicates()
         .withColumn("_reference_exists", F.lit(True))
     )
 
     joined_df = df.join(F.broadcast(ref_df),
-    df[join_col] == ref_df[ref_col], "left")
+    df[join_col] == ref_df[ref_col_name], "left")
 
     return (
         joined_df.withColumn(
             flag_col, F.col(join_col).isNotNull() & F.col("_reference_exists").isNull(),
-        ).drop(ref_col, "_reference_exists")
+        ).drop(ref_col_name, "_reference_exists")
     )
 
 
@@ -151,23 +158,23 @@ def process_silver_table(
 
     """
     bronze_table = f"{catalog}.{bronze_schema}.{bronze_table_name}"
-    clean_table = f"{catalog}. {silver_schema}.{clean_table}"
-    quarantine_table = f"{catalog}. {silver_schema}.{quarantine_table}"
+    clean_table = f"{catalog}.{silver_schema}.{clean_table_name}"
+    quarantine_table = f"{catalog}.{silver_schema}.{quarantine_table_name}"
 
     started_at = datetime.utcnow()
 
-    print(*=*, * 100)
+    print("*=*" * 100)
     print(f"processing source: {source_name}")
     print(f"Bronze table: {bronze_table}")
     print(f"clean table: {clean_table}")
     print(f"Quarantine table: {quarantine_table}")
 
     status = "SUCCESS"
-    error_message= None
+    error_message = ""
     bronze_records = 0
     clean_records = 0
     quarantined_records = 0
-    duplicate_records == 0
+    duplicate_records = 0
 
 
     try:
@@ -185,7 +192,7 @@ def process_silver_table(
 
         clean_records = clean_df.count()
 
-        quarantined_records = quarantine_df.count()
+        quarantined_records = quarantined_df.count()
 
         if duplicate_flag_col:
             duplicate_records = transformed_df.filter(F.col(duplicate_flag_col)).count()
@@ -200,7 +207,7 @@ def process_silver_table(
 
 
         write_delta_table(
-            df=quarantine_df,
+            df=quarantined_df,
             catalog=catalog,
             schema_name=silver_schema,
             table_name=quarantine_table_name,

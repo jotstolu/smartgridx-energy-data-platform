@@ -1,49 +1,25 @@
 # Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
-
-# Virtual environment
 .venv/
-venv/
-env/
+__pycache__/
+*.pyc
 
-# Environment variables
+# Environment/secrets
 .env
-.env.*
+airflow/.env
 
-# VS Code
-.vscode/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Airflow
+# Airflow runtime
 airflow/logs/
 airflow/plugins/__pycache__/
 
-# dbt
-dbt/target/
-dbt/dbt_packages/
-dbt/logs/
-profiles.yml
+# dbt generated files
+airflow/dbt/target/
+airflow/dbt/logs/
+airflow/dbt/dbt_packages/
 
-# Databricks
-.databricks/
+# data files if too large
+data/raw/
+data/processed/
 
-# Data files
-data/
-*.csv
-*.parquet
-*.json
-*.db
-*.sqlite
-
-# Secrets
-*.pem
-*.key
-*.secret
+# OS/editor
+.DS_Store
+.vscode/

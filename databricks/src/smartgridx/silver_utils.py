@@ -19,7 +19,7 @@ def create_silver_audit_table(spark: SparkSession, catalog: str,audit_schema: st
         clean_records BIGINT,
         quarantined_records BIGINT,
         duplicate_records BIGINT,
-        error_nessage STRING,
+        error_message STRING,
         started_at_utc TIMESTAMP,
         ended_at_utc TIMESTAMP,
         environment STRING
@@ -185,15 +185,14 @@ def split_clean_and_quarantine(df: DataFrame) -> tuple[DataFrame, DataFrame]:
     return clean_df, quarantine_df
 
 
-def write_delta_table(df:DataFrame, catalog: str, schema_name: str, table_name: str, mode: str = "overwrite"
-) -> None:
-"""
+def write_delta_table(df:DataFrame, catalog: str, schema_name: str, table_name: str, mode: str = "overwrite") -> None:
+    """
 write dataframe as a table
 
 """
     (
     df.write.format("delta")
-    .mode(mode).option("overwriteSchem0-  a", "true")
+    .mode(mode).option("overwriteSchema", "true")
     .saveAsTable(f"{catalog}.{schema_name}.{table_name}")
     )
 

@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "2"
+# ///
 # MAGIC %md
 # MAGIC # SmartGridX - Silver Meter Readings
 # MAGIC
@@ -13,6 +17,7 @@ import uuid
 from datetime import datetime
 
 # COMMAND ----------
+
 dbutils.widgets.text("environment", "dev")
 dbutils.widgets.text("catalog", "smartgridx_dev")
 dbutils.widgets.text("run_id", "")
@@ -29,7 +34,7 @@ audit_schema = "audit"
 
 bronze_table = f"{catalog}.{bronze_schema}.meter_readings_raw"
 clean_table_name = "meter_readings_clean"
-qurantine_table_name = "meter_readings_qurantine"
+quarantine_table_name = "meter_readings_quarantine"
 
 clean_table = f"{catalog}.{silver_schema}.{clean_table_name}"
 quarantine_table = f"{catalog}.{silver_schema}.{quarantine_table_name}"
@@ -37,8 +42,8 @@ quarantine_table = f"{catalog}.{silver_schema}.{quarantine_table_name}"
 
 # COMMAND ----------
 
-
 sys.path.append("/Workspace/Repos/olaoluwasolademi310@gmail.com/smartgridx-energy-data-platform/databricks/src")
+
 
 from smartgridx.silver_utils import (
     create_silver_audit_table,
@@ -66,7 +71,7 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{audit_schema}")
 
 create_silver_audit_table(
     spark = spark,
-    catalog  catalog,
+    catalog = catalog,
     audit_schema = audit_schema,
 )
 
@@ -93,6 +98,20 @@ except Exception as exc:
 # MAGIC ## 3. Standardise, cast and validate
 
 # COMMAND ----------
+
+import importlib
+import sys
+
+if 'smartgridx.silver_utils' in sys.modules:
+    importlib.reload(sys.modules['smartgridx.silver_utils'])
+    from smartgridx.silver_utils import (
+        standardise_string_columns,
+        cast_meter_reading_columns,
+        add_meter_reading_quality_flags,
+        add_duplicate_flag,
+        add_quarantine_reason,
+        split_clean_and_quarantine,
+    )
 
 try:
     transformed_df = standardise_string_columns(bronze_df)
@@ -124,6 +143,8 @@ except Exception as exc:
 
 # COMMAND ----------
 
+bronze_records = bronze_df.count()
+
 try:
     write_delta_table(
         df = clean_df,
@@ -134,7 +155,7 @@ try:
     )
 
     write_delta_table(
-        df = qurantine_df,
+        df = quarantine_df,
         catalog = catalog,
         schema_name = silver_schema,
         table_name = quarantine_table_name,
@@ -142,7 +163,7 @@ try:
     )
 
     status = "SUCCESS"
-    error_message = None
+    error_message = ""
 
 except Exception as exc:
     status = "FAILED"
@@ -166,7 +187,7 @@ finally:
         "environment": environment,
     }
 
-     write_silver_audit_record(
+    write_silver_audit_record(
         spark=spark,
         catalog=catalog,
         audit_schema=audit_schema,
